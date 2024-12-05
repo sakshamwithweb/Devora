@@ -2,6 +2,7 @@
 
 import DirectoryTree from '@/components/DirectoryTree';
 import { useEffect, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 
 export default function Home() {
   const [repo, setRepo] = useState('');
@@ -13,6 +14,7 @@ export default function Home() {
   const [ignoreThings, setIgnoreThings] = useState([])
   const [userMessage, setUserMessage] = useState("")
   const [AIResponse, setAIResponse] = useState("")
+  const [expire, setExpire] = useState(false)
 
   const handleSubmit = async () => {
     if (repo.trim().length !== 0) {
@@ -72,10 +74,12 @@ export default function Home() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ message:`${message}\n\nIt is my codebase code, My query is:${userMessage}`})
+        body: JSON.stringify({ message: `${message}\n\nIt is my codebase code, My query is:${userMessage}` })
       })
       const aiAnswer = await requestToAI.json()
       setAIResponse(aiAnswer.response)
+      setExpire(true)
+      setUserMessage("")
     } else {
       alert("please input any message")
       return
@@ -123,28 +127,43 @@ export default function Home() {
           )}
         </div>
       ) : (
+
+
         <div className="w-full h-screen bg-gray-100 flex flex-col">
           <div className="w-full max-w-4xl bg-white p-6 rounded-lg shadow-lg h-full flex flex-col mx-auto">
             <div className="flex-1 overflow-y-auto mb-4">
               <h2 className="text-lg font-medium text-gray-900 mb-4">Chat with Devora AI</h2>
+
+              <div className="space-y-4">
+                {AIResponse.length !== 0 && (
+                  <div className="bg-gray-100 p-4 rounded-lg shadow-sm">
+                    <ReactMarkdown className="prose">{AIResponse}</ReactMarkdown>
+                  </div>
+                )}
+              </div>
             </div>
+
             <div className="flex-none">
               <div className="flex items-center gap-2">
-                {AIResponse.length !== 0 && (<span>{AIResponse}</span>)}
                 <input
                   value={userMessage}
-                  onChange={(e) => { setUserMessage(e.target.value) }}
+                  onChange={(e) => { setUserMessage(e.target.value); }}
                   type="text"
                   className="bg-gray-200 text-gray-800 p-3 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Type your message..."
                 />
-                <button onClick={RequestAI} className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">
+                <button
+                  onClick={RequestAI}
+                  disabled={expire}
+                  className={`text-white ${expire?"bg-red-500 hover:bg-red-600":"bg-blue-500 hover:bg-blue-600"} px-4 py-2 rounded-md`}
+                >
                   Send
                 </button>
               </div>
             </div>
           </div>
         </div>
+
       )}
     </div>
   );
