@@ -13,94 +13,30 @@ export async function POST(request) {
         const git = simpleGit();
         await git.clone(repoLink, clonePath);
 
-        const unnecessaryFilesAndFolders = [
-            "favicon.ico",
-            "node_modules/",
-            ".next/",
-            ".gitignore",
-            "out/",
-            "package-lock.json",
-            "yarn.lock",
-            "tsconfig.json",
-            "jsconfig.json",
-            "next-env.d.ts",
-            "postcss.config.mjs",
-            "tailwind.config.js",
-            "next.config.mjs",
-            ".git/",
-            "public/",
-            ".vscode/",
-            "dist/",
-            ".npm/",
-            ".eslintignore",
-            ".prettierrc",
-            ".editorconfig",
-            "logs/",
-            "tests/",
-            "__tests__/"
-        ];
-
-        async function deleteUnnecessaryFiles(basePath) {
+        async function generateStructure(basePath) {
             const items = await fs.readdir(basePath, { withFileTypes: true });
+            const structure = [];
+
             for (const item of items) {
                 const itemPath = path.join(basePath, item.name);
-                if (unnecessaryFilesAndFolders.some(pattern => {
-                    if (!pattern.endsWith('/')) return item.name === pattern;
-                    return pattern.endsWith('/') && item.isDirectory() && item.name === pattern.slice(0, -1);
-                })) {
-                    await fs.rm(itemPath, { recursive: true, force: true });
-                } else if (item.isDirectory()) {
-                    await deleteUnnecessaryFiles(itemPath);
-                }
-            }
-        }
-
-        async function printTree(basePath, prefix = '') {
-            const items = await fs.readdir(basePath, { withFileTypes: true });
-            for (const item of items) {
-                const itemPath = path.join(basePath, item.name);
-                console.log(`${prefix}├── ${item.name}`);
                 if (item.isDirectory()) {
-                    await printTree(itemPath, `${prefix}│   `);
-                }
-            }
-        }
-
-        async function readFilesAndGenerateContent(basePath) {
-            let result = '';
-
-            const items = await fs.readdir(basePath, { withFileTypes: true });
-            for (const item of items) {
-                const itemPath = path.join(basePath, item.name);
-
-                if (item.isDirectory()) {
-                    result += await readFilesAndGenerateContent(itemPath);
-                } else if (item.isFile()) {
-                    const fileContent = await fs.readFile(itemPath, 'utf-8');
-                    const relativePath = path.relative(clonePath, itemPath);
-                    result += `${relativePath}\n\`\`\`\n${fileContent}\n\`\`\`\n\n`;
+                    structure.push({
+                        name: item.name,
+                        type: 'directory',
+                        children: await generateStructure(itemPath)
+                    });
+                } else {
+                    structure.push({
+                        name: item.name,
+                        type: 'file'
+                    });
                 }
             }
 
-            return result;
+            return structure;
         }
-
-        await deleteUnnecessaryFiles(clonePath);
-
-        console.log(`Repository structure after cleanup at ${clonePath}:`);
-        await printTree(clonePath);
-
-        const allFilesContent = await readFilesAndGenerateContent(clonePath);
-
-        console.log(allFilesContent);
-        console.log(allFilesContent.split(/\s+/).filter(Boolean).length)
-
-        const outputFilePath = path.join('.', 'output', 'output.txt');
-        await fs.writeFile(outputFilePath, allFilesContent, 'utf-8');
-
-        await fs.rm(clonePath, { recursive: true, force: true });
-
-        return NextResponse.json({ success: true, message:allFilesContent});
+        const structure = await generateStructure(clonePath);
+        return NextResponse.json({ success: true, structure: structure, clonePath: clonePath });
     } catch (error) {
         console.error(error);
         return NextResponse.json({ success: false, message: "Error processing repository." });
