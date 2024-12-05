@@ -11,6 +11,8 @@ export default function Home() {
   const [structure, setStructure] = useState([])
   const [userSelectTime, setUserSelectTime] = useState(false)
   const [ignoreThings, setIgnoreThings] = useState([])
+  const [userMessage, setUserMessage] = useState("")
+  const [AIResponse, setAIResponse] = useState("")
 
   const handleSubmit = async () => {
     if (repo.trim().length !== 0) {
@@ -45,21 +47,38 @@ export default function Home() {
     }
   }, [message])
 
-  const handleFinalClick = async()=>{
-    if(clonePath.length!==0 && ignoreThings.length!==0){
-      const requestHandleFinalClick=await fetch("/api/getCode",{
+  const handleFinalClick = async () => {
+    if (clonePath.length !== 0 && ignoreThings.length !== 0) {
+      const requestHandleFinalClick = await fetch("/api/getCode", {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json' 
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({clonePath,ignoreThings}) 
+        body: JSON.stringify({ clonePath, ignoreThings })
       })
-      const responseHandleFinalClick=await requestHandleFinalClick.json()
-      if(!responseHandleFinalClick.success){
+      const responseHandleFinalClick = await requestHandleFinalClick.json()
+      if (!responseHandleFinalClick.success) {
         alert("Something went wrong")
         return;
       }
       setMessage(responseHandleFinalClick.message)
+    }
+  }
+
+  const RequestAI = async () => {
+    if (userMessage.length !== 0) {
+      const requestToAI = await fetch("/api/requestAI", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ message:`${message}\n\nIt is my codebase code, My query is:${userMessage}`})
+      })
+      const aiAnswer = await requestToAI.json()
+      setAIResponse(aiAnswer.response)
+    } else {
+      alert("please input any message")
+      return
     }
   }
 
@@ -69,17 +88,17 @@ export default function Home() {
       {!ready ? (
         <div>
           {userSelectTime ? (
-           <div className="max-w-4xl w-full bg-white p-6 rounded-lg shadow-lg">
-           <h1 className="text-2xl font-semibold text-center text-gray-700 mb-4">
-             Select Files and Folders to Ignore
-           </h1>
-           <DirectoryTree
-             structure={structure}
-             ignoreThings={ignoreThings}
-             setIgnoreThings={setIgnoreThings}
-           />
-           <button onClick={handleFinalClick} className='p-2 bg-blue-700 rounded-md my-2'>Submit</button>
-         </div>
+            <div className="max-w-4xl w-full bg-white p-6 rounded-lg shadow-lg">
+              <h1 className="text-2xl font-semibold text-center text-gray-700 mb-4">
+                Select Files and Folders to Ignore
+              </h1>
+              <DirectoryTree
+                structure={structure}
+                ignoreThings={ignoreThings}
+                setIgnoreThings={setIgnoreThings}
+              />
+              <button onClick={handleFinalClick} className='p-2 bg-blue-700 rounded-md my-2'>Submit</button>
+            </div>
           ) : (
             <div className="max-w-md w-full bg-white p-6 rounded-lg shadow-lg">
               <h1 className="text-2xl font-semibold text-center text-gray-700 mb-4">
@@ -111,12 +130,15 @@ export default function Home() {
             </div>
             <div className="flex-none">
               <div className="flex items-center gap-2">
+                {AIResponse.length !== 0 && (<span>{AIResponse}</span>)}
                 <input
+                  value={userMessage}
+                  onChange={(e) => { setUserMessage(e.target.value) }}
                   type="text"
                   className="bg-gray-200 text-gray-800 p-3 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Type your message..."
                 />
-                <button className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">
+                <button onClick={RequestAI} className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">
                   Send
                 </button>
               </div>
